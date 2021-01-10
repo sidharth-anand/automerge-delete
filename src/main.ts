@@ -1,8 +1,8 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
-import { Input } from './input'
-import { AutomergeAction } from './action'
+import {Input} from './input'
+import {AutomergeAction} from './action'
 
 async function run(): Promise<void> {
   try {

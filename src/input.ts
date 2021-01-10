@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 
-import { isDoNotMergeLabel } from './helpers'
-import { MergeMethod } from './types'
+import {isDoNotMergeLabel} from './helpers'
+import {MergeMethod} from './types'
 
 function getNumber(input: string, options?: core.InputOptions): number | null {
   const stringValue = core.getInput(input, options)
@@ -13,7 +13,9 @@ function getNumber(input: string, options?: core.InputOptions): number | null {
   const numberValue = parseInt(stringValue, 10)
 
   if (isNaN(numberValue)) {
-    throw new Error(`Failed parsing input '${input}' to number: '${stringValue}'`)
+    throw new Error(
+      `Failed parsing input '${input}' to number: '${stringValue}'`
+    )
   }
 
   return numberValue
@@ -35,7 +37,7 @@ export class Input {
   dryRun: boolean
 
   constructor() {
-    this.token = core.getInput('token', { required: true })
+    this.token = core.getInput('token', {required: true})
 
     const mergeMethod = core.getInput('merge-method') || undefined
     switch (mergeMethod) {
@@ -56,7 +58,9 @@ export class Input {
     this.doNotMergeLabels = getArray('do-not-merge-labels')
 
     this.pullRequest = getNumber('pull-request')
-    this.pullRequestAuthorAssociations = getArray('pull-request-author-associations')
+    this.pullRequestAuthorAssociations = getArray(
+      'pull-request-author-associations'
+    )
     this.reviewAuthorAssociations = getArray('review-author-associations')
     if (this.reviewAuthorAssociations.length === 0) {
       this.reviewAuthorAssociations = ['COLLABORATOR', 'MEMBER', 'OWNER']

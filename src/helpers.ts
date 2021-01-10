@@ -1,7 +1,14 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
-import { CheckSuite, Octokit, PullRequest, Repo, Review, WorkflowRun } from './types'
+import {
+  CheckSuite,
+  Octokit,
+  PullRequest,
+  Repo,
+  Review,
+  WorkflowRun
+} from './types'
 
 export const UNMERGEABLE_STATES = ['blocked']
 
@@ -28,7 +35,10 @@ export function isAuthorAllowed(
   return authorAssociations.includes(pullRequestOrReview.author_association)
 }
 
-export function isApprovedByAllowedAuthor(review: Review, reviewAuthorAssociations: string[]): boolean {
+export function isApprovedByAllowedAuthor(
+  review: Review,
+  reviewAuthorAssociations: string[]
+): boolean {
   if (!isApproved(review)) {
     core.debug(`Review ${review.id} is not an approval.`)
     return false
@@ -60,7 +70,10 @@ export function relevantReviewsForCommit(
         return false
       }
 
-      const isReviewAuthorAllowed = isAuthorAllowed(review, reviewAuthorAssociations)
+      const isReviewAuthorAllowed = isAuthorAllowed(
+        review,
+        reviewAuthorAssociations
+      )
       if (!isReviewAuthorAllowed) {
         core.debug(
           `Author @${review.user?.login} (${review.author_association}) of review ${review.id} for commit ${commit} is not allowed.`
@@ -74,7 +87,9 @@ export function relevantReviewsForCommit(
       const submittedA = a.submitted_at
       const submittedB = b.submitted_at
 
-      return submittedA && submittedB ? Date.parse(submittedB) - Date.parse(submittedA) : 0
+      return submittedA && submittedB
+        ? Date.parse(submittedB) - Date.parse(submittedA)
+        : 0
     })
     .reduce(
       (acc: Review[], review) =>
@@ -99,7 +114,11 @@ export function commitHasMinimumApprovals(
 ): boolean {
   core.debug(`Checking review for commit ${commit}:`)
   core.debug(`Commit ${commit} has ${reviews.length} reviews.`)
-  const relevantReviews = relevantReviewsForCommit(reviews, reviewAuthorAssociations, commit)
+  const relevantReviews = relevantReviewsForCommit(
+    reviews,
+    reviewAuthorAssociations,
+    commit
+  )
   core.debug(`Commit ${commit} has ${relevantReviews.length} relevant reviews.`)
 
   // All last `n` reviews must be approvals.
@@ -107,11 +126,14 @@ export function commitHasMinimumApprovals(
   return lastNReviews.length >= n && lastNReviews.every(isApproved)
 }
 
-export async function requiredStatusChecksForBranch(octokit: Octokit, branchName: string): Promise<string[]> {
+export async function requiredStatusChecksForBranch(
+  octokit: Octokit,
+  branchName: string
+): Promise<string[]> {
   const branch = (
     await octokit.repos.getBranch({
       ...github.context.repo,
-      branch: branchName,
+      branch: branchName
     })
   ).data
 
@@ -130,12 +152,15 @@ export async function passedRequiredStatusChecks(
   const checkRuns = (
     await octokit.checks.listForRef({
       ...github.context.repo,
-      ref: pullRequest.head.sha,
+      ref: pullRequest.head.sha
     })
   ).data.check_runs
 
   return requiredChecks.every(requiredCheck =>
-    checkRuns.some(checkRun => checkRun.name === requiredCheck && checkRun.conclusion === 'success')
+    checkRuns.some(
+      checkRun =>
+        checkRun.name === requiredCheck && checkRun.conclusion === 'success'
+    )
   )
 }
 
@@ -163,15 +188,20 @@ async function pullRequestsForCommit(
       head: `${repoOwner}:${branch}`,
       sort: 'updated',
       direction: 'desc',
-      per_page: 100,
+      per_page: 100
     })
   ).data as PullRequest[]
 
-  return pullRequests.filter(pr => pr.head.sha === sha).map(({ number }) => number)
+  return pullRequests
+    .filter(pr => pr.head.sha === sha)
+    .map(({number}) => number)
 }
 
-export async function pullRequestsForCheckSuite(octokit: Octokit, checkSuite: CheckSuite): Promise<number[]> {
-  let pullRequests = checkSuite.pull_requests?.map(({ number }) => number) ?? []
+export async function pullRequestsForCheckSuite(
+  octokit: Octokit,
+  checkSuite: CheckSuite
+): Promise<number[]> {
+  let pullRequests = checkSuite.pull_requests?.map(({number}) => number) ?? []
 
   if (pullRequests.length === 0)
     pullRequests = await pullRequestsForCommit(
@@ -188,7 +218,7 @@ export async function pullRequestsForWorkflowRun(
   octokit: Octokit,
   workflowRun: WorkflowRun
 ): Promise<number[]> {
-  let pullRequests = workflowRun.pull_requests?.map(({ number }) => number) ?? []
+  let pullRequests = workflowRun.pull_requests?.map(({number}) => number) ?? []
 
   if (pullRequests.length === 0)
     pullRequests = await pullRequestsForCommit(

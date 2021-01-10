@@ -1,5 +1,5 @@
 import * as github from '@actions/github'
-import { components as OCTOKIT_OPENAPI_TYPES } from '@octokit/openapi-types'
+import {components as OCTOKIT_OPENAPI_TYPES} from '@octokit/openapi-types'
 
 export type Octokit = ReturnType<typeof github.getOctokit>
 
