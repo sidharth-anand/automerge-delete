@@ -1,11 +1,40 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Auto Merge and Delete Pull Request'
+description: 'Automatically merge a PR once the required status checks are complete and then delete the merged branch'
+author: 'Sidharth Anand'
 inputs:
-  milliseconds: # change this
+  token:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: >
+        A github token with read/write access to the repo. Leave empty to use default token
+    default: ${{github.token}}
+  merge-method:
+    required: false
+    description: >
+      Specify which merge method should be used. Default is merge
+  do-not-merge-labels:
+    required: false
+    description: >
+      PRs having any of this comma-separated list of labels are not merged
+  pull-request-author-associations:
+    required: false
+    description: >
+      Comma-separated list of required author associations for the pull request author.
+      (By default, pull requests by any author are allowed.)
+  review-author-associations:
+    required: false
+    description: >
+      Comma-separated list of required author associations for the review author.
+      (By default, reviews by authors which are a `COLLABORATOR`, `MEMBER` or `OWNER` are allowed.)
+  dry-run:
+    required: true
+    description: >
+      If set to `true`, will not actually merge pull requests but still perform all other checks.
+    default: false
+  pull-request:
+    required: false
+    description: >
+      Specify the PR no. to try merging. Useful if running from a workflow_dispatch event
+  
 runs:
   using: 'node12'
   main: 'dist/index.js'
