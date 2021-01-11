@@ -219,9 +219,9 @@ export async function pullRequestsForCheckRun(
   octokit: Octokit,
   checkRun: CheckRun
 ): Promise<number> {
-  let pullRequests = checkRun.pull_requests?.map(({number}) => number) ?? []
+  const pullRequests = checkRun.pull_requests?.map(({number}) => number) ?? []
 
-  return pullRequests[0];
+  return pullRequests[0]
 }
 
 export async function pullRequestsForWorkflowRun(

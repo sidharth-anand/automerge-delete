@@ -250,10 +250,8 @@ class AutomergeAction {
                 core.info(`Conclusion for check suite ${checkRun.id} is ${checkRun.conclusion}, not attempting to merge.`);
                 return;
             }
-            core.info(`PRs are ${checkRun.pull_requests}`);
-            return new Promise((resolve, reject) => {
-                resolve();
-            });
+            const pullRequest = yield helpers_1.pullRequestsForCheckRun(this.octokit, checkRun);
+            yield this.automergePullRequests([pullRequest]);
         });
     }
 }
@@ -296,7 +294,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.pullRequestsForWorkflowRun = exports.pullRequestsForCheckSuite = exports.isDoNotMergeLabel = exports.passedRequiredStatusChecks = exports.requiredStatusChecksForBranch = exports.commitHasMinimumApprovals = exports.relevantReviewsForCommit = exports.isApprovedByAllowedAuthor = exports.isAuthorAllowed = exports.isApproved = exports.isChangesRequested = exports.UNMERGEABLE_STATES = void 0;
+exports.pullRequestsForWorkflowRun = exports.pullRequestsForCheckRun = exports.pullRequestsForCheckSuite = exports.isDoNotMergeLabel = exports.passedRequiredStatusChecks = exports.requiredStatusChecksForBranch = exports.commitHasMinimumApprovals = exports.relevantReviewsForCommit = exports.isApprovedByAllowedAuthor = exports.isAuthorAllowed = exports.isApproved = exports.isChangesRequested = exports.UNMERGEABLE_STATES = void 0;
 const core = __importStar(__webpack_require__(186));
 const github = __importStar(__webpack_require__(438));
 exports.UNMERGEABLE_STATES = ['blocked'];
@@ -426,6 +424,14 @@ function pullRequestsForCheckSuite(octokit, checkSuite) {
     });
 }
 exports.pullRequestsForCheckSuite = pullRequestsForCheckSuite;
+function pullRequestsForCheckRun(octokit, checkRun) {
+    var _a, _b;
+    return __awaiter(this, void 0, void 0, function* () {
+        const pullRequests = (_b = (_a = checkRun.pull_requests) === null || _a === void 0 ? void 0 : _a.map(({ number }) => number)) !== null && _b !== void 0 ? _b : [];
+        return pullRequests[0];
+    });
+}
+exports.pullRequestsForCheckRun = pullRequestsForCheckRun;
 function pullRequestsForWorkflowRun(octokit, workflowRun) {
     var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
