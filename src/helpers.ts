@@ -7,7 +7,8 @@ import {
   PullRequest,
   Repo,
   Review,
-  WorkflowRun
+  WorkflowRun,
+  CheckRun
 } from './types'
 
 export const UNMERGEABLE_STATES = ['blocked']
@@ -212,6 +213,15 @@ export async function pullRequestsForCheckSuite(
     )
 
   return pullRequests
+}
+
+export async function pullRequestsForCheckRun(
+  octokit: Octokit,
+  checkRun: CheckRun
+): Promise<number> {
+  let pullRequests = checkRun.pull_requests?.map(({number}) => number) ?? []
+
+  return pullRequests[0];
 }
 
 export async function pullRequestsForWorkflowRun(

@@ -10,7 +10,8 @@ import {
   passedRequiredStatusChecks,
   pullRequestsForWorkflowRun,
   pullRequestsForCheckSuite,
-  requiredStatusChecksForBranch
+  requiredStatusChecksForBranch,
+  pullRequestsForCheckRun
 } from './helpers'
 import {MergeMethod, Octokit, PullRequest} from './types'
 
@@ -332,10 +333,8 @@ export class AutomergeAction {
       return
     }
 
-    core.info(`PRs are ${checkRun.pull_requests}`)
+    const pullRequest = await pullRequestsForCheckRun(this.octokit, checkRun)
 
-    return new Promise((resolve, reject) => {
-      resolve()
-    })
+    await this.automergePullRequests([pullRequest])
   }
 }
