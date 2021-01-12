@@ -108,18 +108,20 @@ class AutomergeAction {
             const baseBranch = pullRequest.base.ref;
             const requiredStatusChecks = yield helpers_1.requiredStatusChecksForBranch(this.octokit, baseBranch);
             // Only auto-merge if there is at least one required status check.
-            if (requiredStatusChecks.length < 1) {
-                core.info(`Base branch '${baseBranch}' of pull request ${number} is not sufficiently protected.`);
-                return false;
-            }
+            // if (requiredStatusChecks.length < 1) {
+            //   core.info(
+            //     `Base branch '${baseBranch}' of pull request ${number} is not sufficiently protected.`
+            //   )
+            //   return false
+            // }
             if (!(yield helpers_1.passedRequiredStatusChecks(this.octokit, pullRequest, requiredStatusChecks))) {
                 core.info(`Required status checks for pull request ${number} are not successful.`);
                 return false;
             }
-            if (!(yield this.isPullRequestApproved(pullRequest))) {
-                core.info(`Pull request ${number} is not approved.`);
-                return false;
-            }
+            // if (!(await this.isPullRequestApproved(pullRequest))) {
+            //   core.info(`Pull request ${number} is not approved.`)
+            //   return false
+            // }
             const labels = pullRequest.labels.map(({ name }) => name).filter(ts_is_present_1.isPresent);
             const doNotMergeLabels = labels.filter(label => this.input.isDoNotMergeLabel(label));
             if (doNotMergeLabels.length > 0) {
