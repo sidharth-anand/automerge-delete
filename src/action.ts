@@ -109,12 +109,12 @@ export class AutomergeAction {
     )
 
     // Only auto-merge if there is at least one required status check.
-    if (requiredStatusChecks.length < 1) {
-      core.info(
-        `Base branch '${baseBranch}' of pull request ${number} is not sufficiently protected.`
-      )
-      return false
-    }
+    // if (requiredStatusChecks.length < 1) {
+    //   core.info(
+    //     `Base branch '${baseBranch}' of pull request ${number} is not sufficiently protected.`
+    //   )
+    //   return false
+    // }
 
     if (
       !(await passedRequiredStatusChecks(
@@ -129,10 +129,10 @@ export class AutomergeAction {
       return false
     }
 
-    if (!(await this.isPullRequestApproved(pullRequest))) {
-      core.info(`Pull request ${number} is not approved.`)
-      return false
-    }
+    // if (!(await this.isPullRequestApproved(pullRequest))) {
+    //   core.info(`Pull request ${number} is not approved.`)
+    //   return false
+    // }
 
     const labels = pullRequest.labels.map(({name}) => name).filter(isPresent)
     const doNotMergeLabels = labels.filter(label =>
