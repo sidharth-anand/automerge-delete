@@ -4,16 +4,12 @@ import {isPresent} from 'ts-is-present'
 
 import {Input} from './input'
 import {
-  isApprovedByAllowedAuthor,
   isAuthorAllowed,
-  commitHasMinimumApprovals,
   passedRequiredStatusChecks,
-  pullRequestsForWorkflowRun,
-  pullRequestsForCheckSuite,
   requiredStatusChecksForBranch,
   pullRequestsForCheckRun
 } from './helpers'
-import {MergeMethod, Octokit, PullRequest} from './types'
+import {MergeMethod, Octokit} from './types'
 
 export class AutomergeAction {
   octokit: Octokit
@@ -108,14 +104,6 @@ export class AutomergeAction {
       baseBranch
     )
 
-    // Only auto-merge if there is at least one required status check.
-    // if (requiredStatusChecks.length < 1) {
-    //   core.info(
-    //     `Base branch '${baseBranch}' of pull request ${number} is not sufficiently protected.`
-    //   )
-    //   return false
-    // }
-
     if (
       !(await passedRequiredStatusChecks(
         this.octokit,
@@ -128,11 +116,6 @@ export class AutomergeAction {
       )
       return false
     }
-
-    // if (!(await this.isPullRequestApproved(pullRequest))) {
-    //   core.info(`Pull request ${number} is not approved.`)
-    //   return false
-    // }
 
     const labels = pullRequest.labels.map(({name}) => name).filter(isPresent)
     const doNotMergeLabels = labels.filter(label =>
@@ -203,6 +186,23 @@ export class AutomergeAction {
 
           core.info(`Successfully merged pull request ${number}.`)
 
+          try {
+            core.info(
+              `Deleting branch ${pullRequest.base.ref} after successful merge:`
+            )
+
+            await this.octokit.git.deleteRef({
+              ...github.context.repo,
+              ref: pullRequest.base.ref
+            })
+
+            core.info(`Successfully deleted branch ${pullRequest.base.ref}`)
+          } catch (error) {
+            core.error(
+              `Could not delete branch ${pullRequest.base.ref}: ${error.message}`
+            )
+          }
+
           return false
         } catch (error) {
           const message = `Failed to merge pull request ${number} (${triesLeft} tries left): ${error.message}`
@@ -222,99 +222,6 @@ export class AutomergeAction {
         return false
       }
     }
-  }
-
-  async isPullRequestApproved(pullRequest: PullRequest): Promise<boolean> {
-    const reviews = (
-      await this.octokit.pulls.listReviews({
-        ...github.context.repo,
-        pull_number: pullRequest.number,
-        per_page: 100
-      })
-    ).data
-
-    if (reviews.length === 100) {
-      core.setFailed(
-        'Handling pull requests with more than 100 reviews is not implemented.'
-      )
-      return false
-    }
-
-    const commit = pullRequest.head.sha
-    const minimumApprovals = 1
-    return commitHasMinimumApprovals(
-      reviews,
-      this.input.reviewAuthorAssociations,
-      commit,
-      minimumApprovals
-    )
-  }
-
-  async handlePullRequestReview(): Promise<void> {
-    core.debug('handlePullRequestReview()')
-
-    const {action, review, pull_request: pullRequest} = github.context.payload
-
-    if (!action || !review || !pullRequest) {
-      return
-    }
-
-    if (
-      action === 'submitted' &&
-      isApprovedByAllowedAuthor(review, this.input.reviewAuthorAssociations)
-    ) {
-      await this.automergePullRequests([pullRequest.number])
-    }
-  }
-
-  async handleDispatch(): Promise<void> {
-    core.debug('handleDispatch()')
-
-    const pullRequests = (
-      await this.octokit.pulls.list({
-        ...github.context.repo,
-        state: 'open',
-        sort: 'updated',
-        direction: 'desc',
-        per_page: 100
-      })
-    ).data
-
-    if (pullRequests.length === 0) {
-      core.info(`No open pull requests found.`)
-      return
-    }
-
-    await this.automergePullRequests(pullRequests.map(({number}) => number))
-  }
-
-  async handleCheckSuite(): Promise<void> {
-    core.debug('handleCheckSuite()')
-
-    const {action, check_suite: checkSuite} = github.context.payload
-
-    if (!action || !checkSuite) {
-      return
-    }
-
-    if (checkSuite.conclusion !== 'success') {
-      core.info(
-        `Conclusion for check suite ${checkSuite.id} is ${checkSuite.conclusion}, not attempting to merge.`
-      )
-      return
-    }
-
-    const pullRequests = await pullRequestsForCheckSuite(
-      this.octokit,
-      checkSuite
-    )
-
-    if (pullRequests.length === 0) {
-      core.info(`No open pull requests found for check suite ${checkSuite.id}.`)
-      return
-    }
-
-    await this.automergePullRequests(pullRequests)
   }
 
   async handleCheckRun(): Promise<void> {

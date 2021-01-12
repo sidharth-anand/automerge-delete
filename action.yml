@@ -34,6 +34,11 @@ inputs:
     required: false
     description: >
       Specify the PR no. to try merging. Useful if running from a workflow_dispatch event
+  delete-on-merge:
+    required: true
+    description: >
+      If set to true, the merged branch will be deleted on successful merging
+    default: true
   
 runs:
   using: 'node12'

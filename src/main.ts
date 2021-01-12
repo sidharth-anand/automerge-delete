@@ -19,18 +19,6 @@ async function run(): Promise<void> {
 
     const eventName = github.context.eventName
     switch (eventName) {
-      case 'pull_request_review': {
-        await action.handlePullRequestReview()
-        break
-      }
-      case 'workflow_dispatch': {
-        await action.handleDispatch()
-        break
-      }
-      case 'check_suite': {
-        await action.handleCheckSuite()
-        break
-      }
       case 'check_run': {
         await action.handleCheckRun()
         break

@@ -1,15 +1,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
-import {
-  CheckSuite,
-  Octokit,
-  PullRequest,
-  Repo,
-  Review,
-  WorkflowRun,
-  CheckRun
-} from './types'
+import {Octokit, PullRequest, Review, CheckRun} from './types'
 
 export const UNMERGEABLE_STATES = ['blocked']
 
@@ -34,27 +26,6 @@ export function isAuthorAllowed(
   }
 
   return authorAssociations.includes(pullRequestOrReview.author_association)
-}
-
-export function isApprovedByAllowedAuthor(
-  review: Review,
-  reviewAuthorAssociations: string[]
-): boolean {
-  if (!isApproved(review)) {
-    core.debug(`Review ${review.id} is not an approval.`)
-    return false
-  }
-
-  if (!isAuthorAllowed(review, reviewAuthorAssociations)) {
-    core.debug(
-      `Review ${review.id} is approved, however author @${review.user?.login} ` +
-        `is ${review.author_association} but must be one of the following:` +
-        `${reviewAuthorAssociations.join(', ')}`
-    )
-    return false
-  }
-
-  return true
 }
 
 export function relevantReviewsForCommit(
@@ -107,26 +78,6 @@ export function relevantReviewsForCommit(
     .reverse()
 }
 
-export function commitHasMinimumApprovals(
-  reviews: Review[],
-  reviewAuthorAssociations: string[],
-  commit: string,
-  n: number
-): boolean {
-  core.debug(`Checking review for commit ${commit}:`)
-  core.debug(`Commit ${commit} has ${reviews.length} reviews.`)
-  const relevantReviews = relevantReviewsForCommit(
-    reviews,
-    reviewAuthorAssociations,
-    commit
-  )
-  core.debug(`Commit ${commit} has ${relevantReviews.length} relevant reviews.`)
-
-  // All last `n` reviews must be approvals.
-  const lastNReviews = relevantReviews.reverse().slice(0, n)
-  return lastNReviews.length >= n && lastNReviews.every(isApproved)
-}
-
 export async function requiredStatusChecksForBranch(
   octokit: Octokit,
   branchName: string
@@ -172,49 +123,6 @@ export function isDoNotMergeLabel(string: string): boolean {
   return match != null
 }
 
-async function pullRequestsForCommit(
-  octokit: Octokit,
-  repo: Repo,
-  branch: String | null,
-  sha: String
-): Promise<number[]> {
-  const repoOwner = repo.owner?.login
-
-  if (!repoOwner) return []
-
-  const pullRequests = (
-    await octokit.pulls.list({
-      ...github.context.repo,
-      state: 'open',
-      head: `${repoOwner}:${branch}`,
-      sort: 'updated',
-      direction: 'desc',
-      per_page: 100
-    })
-  ).data as PullRequest[]
-
-  return pullRequests
-    .filter(pr => pr.head.sha === sha)
-    .map(({number}) => number)
-}
-
-export async function pullRequestsForCheckSuite(
-  octokit: Octokit,
-  checkSuite: CheckSuite
-): Promise<number[]> {
-  let pullRequests = checkSuite.pull_requests?.map(({number}) => number) ?? []
-
-  if (pullRequests.length === 0)
-    pullRequests = await pullRequestsForCommit(
-      octokit,
-      checkSuite.repository,
-      checkSuite.head_branch,
-      checkSuite.head_sha
-    )
-
-  return pullRequests
-}
-
 export async function pullRequestsForCheckRun(
   octokit: Octokit,
   checkRun: CheckRun
@@ -222,21 +130,4 @@ export async function pullRequestsForCheckRun(
   const pullRequests = checkRun.pull_requests?.map(({number}) => number) ?? []
 
   return pullRequests[0]
-}
-
-export async function pullRequestsForWorkflowRun(
-  octokit: Octokit,
-  workflowRun: WorkflowRun
-): Promise<number[]> {
-  let pullRequests = workflowRun.pull_requests?.map(({number}) => number) ?? []
-
-  if (pullRequests.length === 0)
-    pullRequests = await pullRequestsForCommit(
-      octokit,
-      workflowRun.head_repository,
-      workflowRun.head_branch,
-      workflowRun.head_sha
-    )
-
-  return pullRequests
 }

@@ -107,21 +107,10 @@ class AutomergeAction {
             }
             const baseBranch = pullRequest.base.ref;
             const requiredStatusChecks = yield helpers_1.requiredStatusChecksForBranch(this.octokit, baseBranch);
-            // Only auto-merge if there is at least one required status check.
-            // if (requiredStatusChecks.length < 1) {
-            //   core.info(
-            //     `Base branch '${baseBranch}' of pull request ${number} is not sufficiently protected.`
-            //   )
-            //   return false
-            // }
             if (!(yield helpers_1.passedRequiredStatusChecks(this.octokit, pullRequest, requiredStatusChecks))) {
                 core.info(`Required status checks for pull request ${number} are not successful.`);
                 return false;
             }
-            // if (!(await this.isPullRequestApproved(pullRequest))) {
-            //   core.info(`Pull request ${number} is not approved.`)
-            //   return false
-            // }
             const labels = pullRequest.labels.map(({ name }) => name).filter(ts_is_present_1.isPresent);
             const doNotMergeLabels = labels.filter(label => this.input.isDoNotMergeLabel(label));
             if (doNotMergeLabels.length > 0) {
@@ -165,6 +154,14 @@ class AutomergeAction {
                         core.info(`Merging pull request ${number}${titleMessage}:`);
                         yield this.octokit.pulls.merge(Object.assign(Object.assign({}, github.context.repo), { pull_number: number, sha: pullRequest.head.sha, merge_method: mergeMethod, commit_title: commitTitle, commit_message: commitMessage }));
                         core.info(`Successfully merged pull request ${number}.`);
+                        try {
+                            core.info(`Deleting branch ${pullRequest.base.ref} after successful merge:`);
+                            yield this.octokit.git.deleteRef(Object.assign(Object.assign({}, github.context.repo), { ref: pullRequest.base.ref }));
+                            core.info(`Successfully deleted branch ${pullRequest.base.ref}`);
+                        }
+                        catch (error) {
+                            core.error(`Could not delete branch ${pullRequest.base.ref}: ${error.message}`);
+                        }
                         return false;
                     }
                     catch (error) {
@@ -184,61 +181,6 @@ class AutomergeAction {
                     return false;
                 }
             }
-        });
-    }
-    isPullRequestApproved(pullRequest) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const reviews = (yield this.octokit.pulls.listReviews(Object.assign(Object.assign({}, github.context.repo), { pull_number: pullRequest.number, per_page: 100 }))).data;
-            if (reviews.length === 100) {
-                core.setFailed('Handling pull requests with more than 100 reviews is not implemented.');
-                return false;
-            }
-            const commit = pullRequest.head.sha;
-            const minimumApprovals = 1;
-            return helpers_1.commitHasMinimumApprovals(reviews, this.input.reviewAuthorAssociations, commit, minimumApprovals);
-        });
-    }
-    handlePullRequestReview() {
-        return __awaiter(this, void 0, void 0, function* () {
-            core.debug('handlePullRequestReview()');
-            const { action, review, pull_request: pullRequest } = github.context.payload;
-            if (!action || !review || !pullRequest) {
-                return;
-            }
-            if (action === 'submitted' &&
-                helpers_1.isApprovedByAllowedAuthor(review, this.input.reviewAuthorAssociations)) {
-                yield this.automergePullRequests([pullRequest.number]);
-            }
-        });
-    }
-    handleDispatch() {
-        return __awaiter(this, void 0, void 0, function* () {
-            core.debug('handleDispatch()');
-            const pullRequests = (yield this.octokit.pulls.list(Object.assign(Object.assign({}, github.context.repo), { state: 'open', sort: 'updated', direction: 'desc', per_page: 100 }))).data;
-            if (pullRequests.length === 0) {
-                core.info(`No open pull requests found.`);
-                return;
-            }
-            yield this.automergePullRequests(pullRequests.map(({ number }) => number));
-        });
-    }
-    handleCheckSuite() {
-        return __awaiter(this, void 0, void 0, function* () {
-            core.debug('handleCheckSuite()');
-            const { action, check_suite: checkSuite } = github.context.payload;
-            if (!action || !checkSuite) {
-                return;
-            }
-            if (checkSuite.conclusion !== 'success') {
-                core.info(`Conclusion for check suite ${checkSuite.id} is ${checkSuite.conclusion}, not attempting to merge.`);
-                return;
-            }
-            const pullRequests = yield helpers_1.pullRequestsForCheckSuite(this.octokit, checkSuite);
-            if (pullRequests.length === 0) {
-                core.info(`No open pull requests found for check suite ${checkSuite.id}.`);
-                return;
-            }
-            yield this.automergePullRequests(pullRequests);
         });
     }
     handleCheckRun() {
@@ -296,7 +238,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.pullRequestsForWorkflowRun = exports.pullRequestsForCheckRun = exports.pullRequestsForCheckSuite = exports.isDoNotMergeLabel = exports.passedRequiredStatusChecks = exports.requiredStatusChecksForBranch = exports.commitHasMinimumApprovals = exports.relevantReviewsForCommit = exports.isApprovedByAllowedAuthor = exports.isAuthorAllowed = exports.isApproved = exports.isChangesRequested = exports.UNMERGEABLE_STATES = void 0;
+exports.pullRequestsForCheckRun = exports.isDoNotMergeLabel = exports.passedRequiredStatusChecks = exports.requiredStatusChecksForBranch = exports.relevantReviewsForCommit = exports.isAuthorAllowed = exports.isApproved = exports.isChangesRequested = exports.UNMERGEABLE_STATES = void 0;
 const core = __importStar(__webpack_require__(186));
 const github = __importStar(__webpack_require__(438));
 exports.UNMERGEABLE_STATES = ['blocked'];
@@ -319,21 +261,6 @@ function isAuthorAllowed(pullRequestOrReview, authorAssociations) {
     return authorAssociations.includes(pullRequestOrReview.author_association);
 }
 exports.isAuthorAllowed = isAuthorAllowed;
-function isApprovedByAllowedAuthor(review, reviewAuthorAssociations) {
-    var _a;
-    if (!isApproved(review)) {
-        core.debug(`Review ${review.id} is not an approval.`);
-        return false;
-    }
-    if (!isAuthorAllowed(review, reviewAuthorAssociations)) {
-        core.debug(`Review ${review.id} is approved, however author @${(_a = review.user) === null || _a === void 0 ? void 0 : _a.login} ` +
-            `is ${review.author_association} but must be one of the following:` +
-            `${reviewAuthorAssociations.join(', ')}`);
-        return false;
-    }
-    return true;
-}
-exports.isApprovedByAllowedAuthor = isApprovedByAllowedAuthor;
 function relevantReviewsForCommit(reviews, reviewAuthorAssociations, commit) {
     return reviews
         .filter(review => review.commit_id === commit)
@@ -369,16 +296,6 @@ function relevantReviewsForCommit(reviews, reviewAuthorAssociations, commit) {
         .reverse();
 }
 exports.relevantReviewsForCommit = relevantReviewsForCommit;
-function commitHasMinimumApprovals(reviews, reviewAuthorAssociations, commit, n) {
-    core.debug(`Checking review for commit ${commit}:`);
-    core.debug(`Commit ${commit} has ${reviews.length} reviews.`);
-    const relevantReviews = relevantReviewsForCommit(reviews, reviewAuthorAssociations, commit);
-    core.debug(`Commit ${commit} has ${relevantReviews.length} relevant reviews.`);
-    // All last `n` reviews must be approvals.
-    const lastNReviews = relevantReviews.reverse().slice(0, n);
-    return lastNReviews.length >= n && lastNReviews.every(isApproved);
-}
-exports.commitHasMinimumApprovals = commitHasMinimumApprovals;
 function requiredStatusChecksForBranch(octokit, branchName) {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
@@ -404,28 +321,6 @@ function isDoNotMergeLabel(string) {
     return match != null;
 }
 exports.isDoNotMergeLabel = isDoNotMergeLabel;
-function pullRequestsForCommit(octokit, repo, branch, sha) {
-    var _a;
-    return __awaiter(this, void 0, void 0, function* () {
-        const repoOwner = (_a = repo.owner) === null || _a === void 0 ? void 0 : _a.login;
-        if (!repoOwner)
-            return [];
-        const pullRequests = (yield octokit.pulls.list(Object.assign(Object.assign({}, github.context.repo), { state: 'open', head: `${repoOwner}:${branch}`, sort: 'updated', direction: 'desc', per_page: 100 }))).data;
-        return pullRequests
-            .filter(pr => pr.head.sha === sha)
-            .map(({ number }) => number);
-    });
-}
-function pullRequestsForCheckSuite(octokit, checkSuite) {
-    var _a, _b;
-    return __awaiter(this, void 0, void 0, function* () {
-        let pullRequests = (_b = (_a = checkSuite.pull_requests) === null || _a === void 0 ? void 0 : _a.map(({ number }) => number)) !== null && _b !== void 0 ? _b : [];
-        if (pullRequests.length === 0)
-            pullRequests = yield pullRequestsForCommit(octokit, checkSuite.repository, checkSuite.head_branch, checkSuite.head_sha);
-        return pullRequests;
-    });
-}
-exports.pullRequestsForCheckSuite = pullRequestsForCheckSuite;
 function pullRequestsForCheckRun(octokit, checkRun) {
     var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
@@ -434,16 +329,6 @@ function pullRequestsForCheckRun(octokit, checkRun) {
     });
 }
 exports.pullRequestsForCheckRun = pullRequestsForCheckRun;
-function pullRequestsForWorkflowRun(octokit, workflowRun) {
-    var _a, _b;
-    return __awaiter(this, void 0, void 0, function* () {
-        let pullRequests = (_b = (_a = workflowRun.pull_requests) === null || _a === void 0 ? void 0 : _a.map(({ number }) => number)) !== null && _b !== void 0 ? _b : [];
-        if (pullRequests.length === 0)
-            pullRequests = yield pullRequestsForCommit(octokit, workflowRun.head_repository, workflowRun.head_branch, workflowRun.head_sha);
-        return pullRequests;
-    });
-}
-exports.pullRequestsForWorkflowRun = pullRequestsForWorkflowRun;
 
 
 /***/ }),
@@ -517,6 +402,7 @@ class Input {
             this.reviewAuthorAssociations = ['COLLABORATOR', 'MEMBER', 'OWNER'];
         }
         this.dryRun = core.getInput('dry-run') === 'true';
+        this.deleteOnMerge = core.getInput('delete-on-merge') === 'true';
     }
     isDoNotMergeLabel(label) {
         return this.doNotMergeLabels.includes(label) || helpers_1.isDoNotMergeLabel(label);
@@ -577,18 +463,6 @@ function run() {
             }
             const eventName = github.context.eventName;
             switch (eventName) {
-                case 'pull_request_review': {
-                    yield action.handlePullRequestReview();
-                    break;
-                }
-                case 'workflow_dispatch': {
-                    yield action.handleDispatch();
-                    break;
-                }
-                case 'check_suite': {
-                    yield action.handleCheckSuite();
-                    break;
-                }
                 case 'check_run': {
                     yield action.handleCheckRun();
                     break;

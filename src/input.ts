@@ -35,6 +35,7 @@ export class Input {
   pullRequestAuthorAssociations: string[]
   reviewAuthorAssociations: string[]
   dryRun: boolean
+  deleteOnMerge: boolean
 
   constructor() {
     this.token = core.getInput('token', {required: true})
@@ -67,6 +68,8 @@ export class Input {
     }
 
     this.dryRun = core.getInput('dry-run') === 'true'
+
+    this.deleteOnMerge = core.getInput('delete-on-merge') === 'true'
   }
 
   isDoNotMergeLabel(label: string): boolean {
