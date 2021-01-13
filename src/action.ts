@@ -99,6 +99,7 @@ export class AutomergeAction {
     }
 
     const baseBranch = pullRequest.base.ref
+    const headBranch = pullRequest.head.ref
     const requiredStatusChecks = await requiredStatusChecksForBranch(
       this.octokit,
       baseBranch
@@ -187,19 +188,17 @@ export class AutomergeAction {
           core.info(`Successfully merged pull request ${number}.`)
 
           try {
-            core.info(
-              `Deleting branch ${pullRequest.base.ref} after successful merge:`
-            )
+            core.info(`Deleting branch ${headBranch} after successful merge:`)
 
             await this.octokit.git.deleteRef({
               ...github.context.repo,
-              ref: pullRequest.base.ref
+              ref: headBranch
             })
 
-            core.info(`Successfully deleted branch ${pullRequest.base.ref}`)
+            core.info(`Successfully deleted branch ${headBranch}`)
           } catch (error) {
             core.error(
-              `Could not delete branch ${pullRequest.base.ref}: ${error.message}`
+              `Could not delete branch ${headBranch}: ${error.message}`
             )
           }
 

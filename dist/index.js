@@ -106,6 +106,7 @@ class AutomergeAction {
                 return false;
             }
             const baseBranch = pullRequest.base.ref;
+            const headBranch = pullRequest.head.ref;
             const requiredStatusChecks = yield helpers_1.requiredStatusChecksForBranch(this.octokit, baseBranch);
             if (!(yield helpers_1.passedRequiredStatusChecks(this.octokit, pullRequest, requiredStatusChecks))) {
                 core.info(`Required status checks for pull request ${number} are not successful.`);
@@ -155,12 +156,12 @@ class AutomergeAction {
                         yield this.octokit.pulls.merge(Object.assign(Object.assign({}, github.context.repo), { pull_number: number, sha: pullRequest.head.sha, merge_method: mergeMethod, commit_title: commitTitle, commit_message: commitMessage }));
                         core.info(`Successfully merged pull request ${number}.`);
                         try {
-                            core.info(`Deleting branch ${pullRequest.base.ref} after successful merge:`);
-                            yield this.octokit.git.deleteRef(Object.assign(Object.assign({}, github.context.repo), { ref: pullRequest.base.ref }));
-                            core.info(`Successfully deleted branch ${pullRequest.base.ref}`);
+                            core.info(`Deleting branch ${headBranch} after successful merge:`);
+                            yield this.octokit.git.deleteRef(Object.assign(Object.assign({}, github.context.repo), { ref: headBranch }));
+                            core.info(`Successfully deleted branch ${headBranch}`);
                         }
                         catch (error) {
-                            core.error(`Could not delete branch ${pullRequest.base.ref}: ${error.message}`);
+                            core.error(`Could not delete branch ${headBranch}: ${error.message}`);
                         }
                         return false;
                     }
